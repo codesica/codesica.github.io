@@ -1,23 +1,20 @@
 ---
 import type { Language } from '@/i18n/config'
-import Button from '@/components/Button.astro'
-import Footer from '@/components/Footer.astro'
-import Header from '@/components/Header.astro'
-import Navbar from '@/components/Navbar.astro'
 import CodeCopyButton from '@/components/Widgets/CodeCopyButton.astro'
 import GithubCard from '@/components/Widgets/GithubCard.astro'
 import ImageZoom from '@/components/Widgets/ImageZoom.astro'
 import MediaEmbed from '@/components/Widgets/MediaEmbed.astro'
+import ReadingControls from '@/components/ReadingControls.astro'
 import { themeConfig } from '@/config'
 import Head from '@/layouts/Head.astro'
 import { getPageInfo } from '@/utils/page'
 import '@/styles/comment.css'
 import '@/styles/extension.css'
-import '@/styles/font.css'
 import '@/styles/global.css'
 import '@/styles/lqip.css'
 import '@/styles/markdown.css'
 import '@/styles/transition.css'
+import '@/styles/reading.css'
 
 interface Props {
   postTitle?: string
@@ -25,27 +22,38 @@ interface Props {
   postSlug?: string
   supportedLangs?: Language[]
 }
-
-const { postTitle, postDescription, postSlug, supportedLangs = [] } = Astro.props
-const { isPost } = getPageInfo(Astro.url.pathname)
-const fontStyle = themeConfig.global.fontStyle === 'serif' ? 'font-serif' : 'font-sans'
-const MarginBottom = isPost && themeConfig.comment.enabled ? 'mb-10' : 'mb-12'
+const { postTitle, postDescription, postSlug } = Astro.props
+const { isHome, isPost, isTag, isAbout, getLocalizedPath } = getPageInfo(Astro.url.pathname)
+const { title, subtitle, author } = themeConfig.site
+const navigation = [
+  { label: '文章', path: '/', active: isHome || isPost },
+  { label: '标签', path: '/tags/', active: isTag },
+  { label: '关于', path: '/about/', active: isAbout },
+]
 ---
-
-<html lang={Astro.currentLocale} class:list={[fontStyle, isPost ? 'scroll-smooth' : '']}>
+<html lang={Astro.currentLocale || 'zh'} class="reading-site">
   <Head {postTitle} {postDescription} {postSlug} />
   <body>
-    <div
-      class="mx-auto max-w-205.848 min-h-vh w-full min-h-dvh"
-      p="x-[min(7.25vw,3.731rem)] y-10"
-      lg="mx-[max(5.75rem,calc(50vw-34.25rem))] my-20 max-w-[min(calc(75vw-16rem),44rem)] min-h-full p-0"
-    >
-      <Header />
-      <Navbar />
-      <main class={MarginBottom}><slot /></main>
-      <Footer />
+    <a class="skip-to-content" href="#main">跳到正文</a>
+    <div class="reading-shell">
+      <header class="reading-header">
+        <a id="site-title-link" class="reading-brand" href={getLocalizedPath('/')}>{title}</a>
+        <div class="reading-header-actions">
+          <nav class="reading-nav" aria-label="主导航">
+            {navigation.map(item => <a href={getLocalizedPath(item.path)} aria-current={item.active ? 'page' : undefined}>{item.label}</a>)}
+          </nav>
+          <ReadingControls />
+        </div>
+      </header>
+      <main id="main" class:list={['reading-main', { 'reading-home': isHome }]}>
+        {isHome && <div class="reading-intro"><h1>文章</h1>{subtitle && <p>{subtitle}</p>}</div>}
+        <slot />
+      </main>
+      <footer class="reading-footer">
+        <span>© {new Date().getFullYear()} {author}</span>
+        <nav aria-label="页脚导航"><a href={getLocalizedPath('/atom.xml')}>RSS</a><a href="https://github.com/codesica" rel="me">GitHub</a></nav>
+      </footer>
     </div>
-    <Button supportedLangs={supportedLangs} />
     <CodeCopyButton />
     <GithubCard />
     <MediaEmbed />

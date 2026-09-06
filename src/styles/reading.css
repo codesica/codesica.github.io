@@ -1,0 +1,117 @@
+/* Chinese-first reading layer. Keep content and routes independent from presentation. */
+html.reading-site {
+  --reading-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Segoe UI", sans-serif;
+  --reading-code: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --reading-paper: #fff; --reading-ink: #252525; --reading-muted: #666; --reading-line: #e7e7e7; --reading-panel: #f6f6f6; --reading-link: #245c91;
+  font-family: var(--reading-font); font-size: 16px; background: var(--reading-paper); color: var(--reading-ink);
+  letter-spacing: normal; word-spacing: normal; text-autospace: no-autospace; -webkit-text-size-adjust: 100%; scrollbar-gutter: auto;
+}
+html.reading-site.dark { color-scheme: dark; --reading-paper: #181818; --reading-ink: #dedede; --reading-muted: #aaa; --reading-line: #363636; --reading-panel: #222; --reading-link: #9bc5ec; }
+.reading-site body { margin: 0; background: var(--reading-paper); color: var(--reading-ink); font-family: var(--reading-font); font-size: 17px; line-height: 1.8; }
+.reading-site *, .reading-site *::before, .reading-site *::after { box-sizing: border-box; }
+.reading-site :is(.font-title, .font-navbar, .font-time, .font-serif, .font-sans) { font-family: var(--reading-font) !important; font-style: normal; }
+.reading-site :is(h1,h2,h3,h4,h5,h6,p,li,nav,time) { letter-spacing: normal !important; word-spacing: normal; }
+.reading-site a { text-underline-offset: .2em; }
+.reading-site a:focus-visible, .reading-site button:focus-visible, .reading-site summary:focus-visible { outline: 2px solid var(--reading-link); outline-offset: 4px; }
+.reading-site ::selection { background: #dce8f2; color: #111; }
+.reading-shell { width: calc(100% - 40px); max-width: 720px; margin: 0 auto; min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
+.reading-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 28px 0 20px; border-bottom: 1px solid var(--reading-line); }
+.reading-brand { font-size: 23px; font-weight: 650; color: var(--reading-ink); text-decoration: none; line-height: 1.4; }
+.reading-header-actions, .reading-nav { display: flex; align-items: center; gap: 21px; }
+.reading-header-actions { gap: 16px; }
+.reading-nav { font-size: 14px; }
+.reading-nav a { color: var(--reading-muted); text-decoration: none; padding: 6px 0; }
+.reading-nav a:hover, .reading-nav a[aria-current="page"] { color: var(--reading-ink); text-decoration: underline; text-underline-offset: 6px; }
+.reading-theme-button { display: grid; place-items: center; width: 32px; height: 36px; border: 0; padding: 7px; background: none; color: var(--reading-muted); cursor: pointer; }
+.reading-theme-button svg { width: 18px; height: 18px; }
+.reading-sun, .dark .reading-moon { display: none; }
+.dark .reading-sun { display: block; }
+.reading-main { flex: 1; min-width: 0; padding: 38px 0 56px; }
+.reading-intro { margin: 0 0 30px; }
+.reading-intro h1 { font-size: 24px; font-weight: 650; line-height: 1.5; margin: 0 0 8px; }
+.reading-intro p { margin: 0; color: var(--reading-muted); font-size: 15px; line-height: 1.8; }
+.reading-home > section { margin: 0; }
+.reading-home .uno-decorative-line { display: none; }
+.reading-post-list { list-style: none; margin: 0; padding: 0; }
+.reading-post-item { margin: 0; padding: 22px 0; border-bottom: 1px solid var(--reading-line); }
+.reading-post-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
+.reading-post-heading h3 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.65; }
+.reading-post-heading a { text-decoration: none; color: var(--reading-ink); }
+.reading-post-heading a:hover { text-decoration: underline; }
+.reading-post-heading time, .reading-pin { flex-shrink: 0; font-size: 13px; color: var(--reading-muted); font-variant-numeric: tabular-nums; }
+.reading-pin { display: inline-block; margin-top: 3px; }
+.reading-excerpt { margin: 9px 0 0; color: var(--reading-muted); font-size: 15px; line-height: 1.8; text-align: left; }
+.reading-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; border-top: 1px solid var(--reading-line); padding: 22px 0 28px; color: var(--reading-muted); font-size: 13px; }
+.reading-footer nav { display: flex; gap: 22px; }
+.reading-footer a { color: inherit; text-decoration: none; }
+.reading-footer a:hover { text-decoration: underline; }
+.reading-site .heti { font-family: var(--reading-font); font-size: 18px; line-height: 1.8; letter-spacing: normal; hyphens: none; word-break: normal; overflow-wrap: anywhere; text-align: left; line-break: strict; }
+.reading-site .heti :where(p,li,blockquote,th,td) { text-align: left; text-wrap: wrap; letter-spacing: normal; line-height: 1.8; }
+.reading-site .heti p { margin: 0 0 1.25em; }
+.reading-site .heti :is(h1,h2,h3,h4,h5,h6) { font-family: var(--reading-font); color: var(--reading-ink); line-height: 1.55; font-weight: 650; word-break: normal; overflow-wrap: anywhere; text-wrap: wrap; margin: 1.8em 0 .8em; scroll-margin-top: 24px; }
+.reading-site .heti h1 { font-size: 30px; }
+.reading-site .heti h2 { font-size: 24px; }
+.reading-site .heti h3 { font-size: 21px; }
+.reading-site .heti :is(h4,h5,h6) { font-size: 18px; }
+.reading-site .reading-article-header .post-title { margin: 0 0 12px; font-size: 30px; line-height: 1.5; font-weight: 650; }
+.reading-site #post-date { margin: 0; color: var(--reading-muted); font-size: 14px; line-height: 1.8; font-family: var(--reading-font); font-variant-numeric: tabular-nums; }
+.reading-article-header { margin-bottom: 28px; }
+.reading-site .heti a:not(.no-heti):not(.no-heti *) { font-weight: 400; color: var(--reading-link); text-decoration-thickness: 1px; word-break: normal; overflow-wrap: anywhere; }
+.reading-site .heti :is(strong,b) { font-weight: 650; }
+.reading-site .heti :is(ul,ol) { margin: 1em 0 1.4em; padding-left: 1.5em; }
+.reading-site .heti li { margin-top: .35em; }
+.reading-site .heti li > p { margin-bottom: .5em; }
+.reading-site .heti blockquote { border-left: 3px solid #bbb; margin: 1.5em 0; padding: .15em 0 .15em 1em; color: var(--reading-muted); }
+.reading-site .heti blockquote > :last-child { margin-bottom: 0; }
+.reading-site .heti .code-block-wrapper { min-width: 0; max-width: 100%; margin: 1.5em 0; }
+.reading-site .heti pre { max-width: 100%; margin: 1.5em 0; padding: 18px 16px; border: 1px solid var(--reading-line); border-radius: 4px; overflow: auto; overscroll-behavior-x: contain; background: var(--reading-panel) !important; font-family: var(--reading-code); font-size: 14px; line-height: 1.75; tab-size: 2; text-align: left; white-space: pre; letter-spacing: normal; word-break: normal; overflow-wrap: normal; }
+.reading-site .heti .code-block-wrapper pre { margin: 0; }
+.reading-site .heti code { font-family: var(--reading-code); font-size: .88em; letter-spacing: normal; word-break: normal; overflow-wrap: anywhere; border: 0; border-radius: 3px; padding: .12em .28em; background: var(--reading-panel); }
+.reading-site .heti pre code { font-size: inherit; line-height: inherit; white-space: inherit; padding: 0; overflow-wrap: normal; background: none; }
+.reading-site .heti code span.line { padding-left: 0; }
+.reading-site .heti code span.line::before { display: none; }
+.reading-site .heti .code-copy-button { opacity: .8; }
+.reading-site .heti table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1.5em 0; font-size: 15px; line-height: 1.7; }
+.reading-site .heti :is(th,td) { padding: 10px 14px; border: 1px solid var(--reading-line); min-width: 90px; vertical-align: top; }
+.reading-site .heti th { background: var(--reading-panel); font-weight: 600; }
+.reading-site .heti :is(img,video,iframe) { max-width: 100%; }
+.reading-site .heti img { height: auto; }
+.reading-site .heti hr { height: 0; border: 0; border-top: 1px solid var(--reading-line); margin: 2em 0; }
+.reading-site .heti hr::before { content: none; }
+.reading-site .heti .heading-anchor-link { font-size: .75em; }
+.reading-site .reading-toc { border-top: 1px solid var(--reading-line); border-bottom: 1px solid var(--reading-line); margin: 0 0 30px; padding: 0; font-size: 14px; }
+.reading-site .reading-toc summary { cursor: pointer; padding: 12px 0; font-weight: 500; color: var(--reading-muted); }
+.reading-toc-hint { float: right; font-size: 12px; font-weight: 400; }
+.reading-site .reading-toc ol { list-style: none; padding: 0 0 12px; margin: 0; }
+.reading-site .reading-toc li { margin: 3px 0; }
+.reading-site .reading-toc .reading-toc-nested { margin-left: 1em; }
+.reading-site .reading-toc a { color: var(--reading-muted) !important; text-decoration: none !important; line-height: 1.9; }
+.reading-site .reading-toc a:hover { text-decoration: underline !important; }
+.reading-article-tags { border-top: 1px solid var(--reading-line); padding-top: 18px; margin-top: 36px; font-size: 14px; }
+.reading-site .reading-back { display: inline-block; margin-top: 30px; font-size: 14px; color: var(--reading-muted) !important; text-decoration: none !important; }
+.skip-to-content { position: absolute; top: -100px; left: 20px; z-index: 9999; background: var(--reading-paper); padding: 8px; }
+.skip-to-content:focus { top: 8px; }
+@media (max-width: 600px) {
+  .reading-header { padding: 21px 0 16px; gap: 12px; }
+  .reading-header-actions { gap: 8px; }
+  .reading-nav { gap: 17px; font-size: 14px; }
+  .reading-main { padding: 28px 0 42px; }
+  .reading-intro { margin-bottom: 16px; }
+  .reading-post-item { padding: 19px 0; }
+  .reading-post-heading { display: block; }
+  .reading-post-heading h3 { font-size: 19px; line-height: 1.65; }
+  .reading-post-heading time { display: block; margin-top: 6px; }
+  .reading-excerpt { font-size: 14px; }
+  .reading-site .heti { font-size: 17px; line-height: 1.8; }
+  .reading-site .reading-article-header .post-title { font-size: 27px; line-height: 1.5; }
+  .reading-site .heti h2 { font-size: 22px; }
+  .reading-site .heti h3 { font-size: 20px; }
+  .reading-site .heti pre { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { .reading-site * { scroll-behavior: auto !important; } }
+@media print {
+  .reading-header-actions, .reading-footer, .reading-toc, .reading-back, .code-copy-button { display: none !important; }
+  .reading-shell { width: 100%; max-width: none; min-height: 0; }
+  .reading-main { padding: 20px 0; }
+  html.reading-site { --reading-paper: #fff; --reading-ink: #000; --reading-muted: #444; }
+}

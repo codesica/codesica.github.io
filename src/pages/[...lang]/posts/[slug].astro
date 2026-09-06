@@ -3,134 +3,53 @@ import type { CollectionEntry } from 'astro:content'
 import type { Language } from '@/i18n/config'
 import { getCollection, render } from 'astro:content'
 import Comment from '@/components/Comment/Index.astro'
-import PostDate from '@/components/PostDate.astro'
 import TagList from '@/components/TagList.astro'
-import BackButton from '@/components/Widgets/BackButton.astro'
 import TOC from '@/components/Widgets/TOC.astro'
 import { allLocales } from '@/config'
 import { getLangFromLocale, getLangRouteParam } from '@/i18n/lang'
 import Layout from '@/layouts/Layout.astro'
 import { checkPostSlugDuplication } from '@/utils/content'
 import { getPostDescription } from '@/utils/description'
+import { getPageInfo } from '@/utils/page'
 
 export async function getStaticPaths() {
   const posts: CollectionEntry<'posts'>[] = await getCollection('posts')
-
-  // Check if there are duplicate post slugs
   const duplicates = await checkPostSlugDuplication(posts)
-  if (duplicates.length > 0) {
-    throw new Error(`Duplicate post slugs:\n${duplicates.join('\n')}`)
-  }
-
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  // Build a map of post slugs to their supported languages
-  // Handles both specific language posts (e.g., 'en') and universal posts (lang: '')
+  if (duplicates.length > 0) throw new Error(`Duplicate post slugs:\n${duplicates.join('\n')}`)
   const slugToLangsMap = new Map<string, Set<Language>>()
-
   for (const post of posts) {
     const slug = post.data.abbrlink || post.id
-    const lang = post.data.lang
-
-    let langSet = slugToLangsMap.get(slug)
-    if (!langSet) {
-      langSet = new Set()
-      slugToLangsMap.set(slug, langSet)
-    }
-
-    if (lang) {
-      langSet.add(lang as Language)
-    }
-    else {
-      allLocales.forEach(locale => langSet.add(locale))
-    }
+    const languages = slugToLangsMap.get(slug) || new Set<Language>()
+    if (post.data.lang) languages.add(post.data.lang as Language)
+    else allLocales.forEach(locale => languages.add(locale))
+    slugToLangsMap.set(slug, languages)
   }
-
-  // Convert the map to a sorted record for the component props
-  // Ensure languages are always sorted by the order defined in config
   const slugToLangs: Record<string, Language[]> = {}
-  for (const [slug, langs] of slugToLangsMap) {
-    slugToLangs[slug] = [...langs].sort((a, b) => allLocales.indexOf(a) - allLocales.indexOf(b))
-  }
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
+  for (const [slug, languages] of slugToLangsMap) slugToLangs[slug] = [...languages].sort((a, b) => allLocales.indexOf(a) - allLocales.indexOf(b))
   return allLocales.flatMap(lang => posts
-    // Show drafts in dev mode only
     .filter(post => import.meta.env.DEV || !post.data.draft)
-    // Match current language or universal posts
     .filter(post => post.data.lang === lang || post.data.lang === '')
-    .map((post) => {
-      const slug = post.data.abbrlink || post.id
-      return {
-        params: { lang: getLangRouteParam(lang), slug },
-        props: { post, supportedLangs: slugToLangs[slug] },
-      }
-    }),
-  )
+    .map(post => ({ params: { lang: getLangRouteParam(lang), slug: post.data.abbrlink || post.id }, props: { post, supportedLangs: slugToLangs[post.data.abbrlink || post.id] } })))
 }
-
-interface Props {
-  post: CollectionEntry<'posts'>
-  supportedLangs: Language[]
-}
-
+interface Props { post: CollectionEntry<'posts'>; supportedLangs: Language[] }
 const { post, supportedLangs } = Astro.props
 const currentLang = getLangFromLocale(Astro.currentLocale)
-const slug = post.data.abbrlink || post.id
+const { getLocalizedPath } = getPageInfo(Astro.url.pathname)
 const description = getPostDescription(post, 'meta')
-const { Content, headings, remarkPluginFrontmatter } = await render(post)
+const { Content, headings } = await render(post)
+const date = post.data.published.toISOString().slice(0, 10)
+const updated = post.data.updated?.toISOString().slice(0, 10)
 ---
-
-<Layout
-  postTitle={post.data.title}
-  postDescription={description}
-  postSlug={post.id}
-  supportedLangs={supportedLangs}
->
-  <article class="heti">
-    <div class="relative">
-      <!-- Go Back Button On Desktop -->
-      <BackButton />
-      <!-- Title -->
-      <h1 class="post-title">
-        <span
-          transition:name={`post-${slug}${currentLang ? `-${currentLang}` : ''}`}
-          data-disable-theme-toggle-transition
-        >
-          {post.data.title}
-        </span>
-      </h1>
-    </div>
-
-    <!-- Date -->
-    <div
-      id="post-date"
-      class="mb-17.2 block c-primary font-time"
-      transition:name={`time-${slug}${currentLang ? `-${currentLang}` : ''}`}
-      data-disable-theme-toggle-transition
-    >
-      <PostDate
-        date={post.data.published}
-        updatedDate={post.data.updated}
-        minutes={remarkPluginFrontmatter.minutes}
-      />
-    </div>
-    <!-- TOC -->
+<Layout postTitle={post.data.title} postDescription={description} postSlug={post.id} supportedLangs={supportedLangs}>
+  <article class="heti reading-article">
+    <header class="reading-article-header">
+      <h1 class="post-title">{post.data.title}</h1>
+      <p id="post-date" class="reading-post-date"><time datetime={date}>{date}</time>{updated && updated !== date && <span> · 更新于 <time datetime={updated}>{updated}</time></span>}</p>
+    </header>
     {post.data.toc && <TOC headings={headings} />}
-    <!-- Content -->
-    <div id="post-content">
-      <Content />
-      <!-- Copyright -->
-      <div id="post-copyright" />
-      <!-- Tag List -->
-      {post.data.tags?.length > 0 && (
-        <div class="mt-12.6 uno-decorative-line" />
-        <TagList
-          tags={post.data.tags}
-          lang={currentLang}
-        />
-      )}
-      <!-- Comment -->
-      <Comment />
-    </div>
+    <div id="post-content"><Content /><div id="post-copyright" /></div>
+    {post.data.tags?.length > 0 && <div class="reading-article-tags"><TagList tags={post.data.tags} lang={currentLang} /></div>}
+    <Comment />
+    <a class="reading-back" href={getLocalizedPath('/')}>← 返回文章列表</a>
   </article>
 </Layout>

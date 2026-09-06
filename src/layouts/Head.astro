@@ -2,26 +2,19 @@
 import { ClientRouter } from 'astro:transitions'
 import katexCSS from 'katex/dist/katex.min.css?url'
 import { base, themeConfig } from '@/config'
-
-interface Props {
-  postTitle?: string
-  postDescription?: string
-  postSlug?: string
-}
-
+interface Props { postTitle?: string; postDescription?: string; postSlug?: string }
 const { postTitle, postDescription, postSlug } = Astro.props
 const { title, subtitle, description, author, favicon, url } = themeConfig.site
-const { mode: defaultMode, light: { background: lightMode }, dark: { background: darkMode } } = themeConfig.color
-const { katex: katexEnabled, reduceMotion } = themeConfig.global
+const { mode: defaultMode } = themeConfig.color
+const { katex: katexEnabled } = themeConfig.global
+const lightMode = '#ffffff'
+const darkMode = '#181818'
 const isNotFound = /\/404(?:\.html|\/)?$/.test(Astro.url.pathname)
 const canonical = new URL(isNotFound ? `${base}/404.html` : Astro.url.pathname, url)
 const pageTitle = isNotFound ? `页面未找到 | ${title}` : postTitle ? `${postTitle} | ${title}` : `${title} · ${subtitle}`
 const pageDescription = postDescription || description
-// Generate article images locally. Never use the upstream author's screenshot API or credentials.
 const pageImage = postSlug ? new URL(`${base}/og/${postSlug}.png`, url) : undefined
-const metaTheme = defaultMode === 'dark' ? darkMode : lightMode
 ---
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -30,13 +23,9 @@ const metaTheme = defaultMode === 'dark' ? darkMode : lightMode
   <meta name="description" content={pageDescription} />
   <meta name="author" content={author} />
   <meta name="generator" content={Astro.generator} />
-  <meta name="theme-color" content={metaTheme} />
+  <meta name="theme-color" content={defaultMode === 'dark' ? darkMode : lightMode} />
   {isNotFound && <meta name="robots" content="noindex, follow" />}
-  <link rel="preload" href={`${base}/fonts/EarlySummer-VF-Split/EarlySummer-VF-Subset.woff2`} as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href={`${base}/fonts/Snell-Black-SF.woff2`} as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href={`${base}/fonts/Snell-Bold-SF.woff2`} as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href={`${base}/fonts/STIX-VF.woff2`} as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href={`${base}/fonts/STIX-Italic-VF.woff2`} as="font" type="font/woff2" crossorigin />
+  <!-- Reading typography uses system fonts: no decorative font downloads or preloads. -->
   {katexEnabled && <link rel="stylesheet" href={katexCSS} />}
   <link rel="canonical" href={canonical} />
   <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
@@ -51,20 +40,15 @@ const metaTheme = defaultMode === 'dark' ? darkMode : lightMode
   {pageImage && <meta property="og:image" content={pageImage} />}
   <meta name="twitter:card" content={pageImage ? 'summary_large_image' : 'summary'} />
   <ClientRouter fallback="none" />
-  <script is:inline define:vars={{ defaultMode, lightMode, darkMode, reduceMotion }}>
+  <script is:inline define:vars={{ defaultMode, lightMode, darkMode }}>
     (() => {
-      function isDark() {
-        let saved = null
-        try { saved = localStorage.getItem('theme') } catch { /* Storage can be disabled. */ }
-        if (saved === 'dark' || saved === 'light') return saved === 'dark'
-        return defaultMode === 'auto' ? matchMedia('(prefers-color-scheme: dark)').matches : defaultMode === 'dark'
-      }
       function initialize(doc = document) {
-        const dark = isDark()
+        let saved = null
+        try { saved = localStorage.getItem('theme') } catch {}
+        const dark = saved === 'dark' || (saved !== 'light' && (defaultMode === 'dark' || (defaultMode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)))
         doc.documentElement.classList.toggle('dark', dark)
+        doc.documentElement.classList.add('reduce-motion')
         doc.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? darkMode : lightMode)
-        const reduced = reduceMotion || matchMedia('(prefers-reduced-motion: reduce)').matches || !('startViewTransition' in doc)
-        doc.documentElement.classList.toggle('reduce-motion', reduced)
       }
       document.addEventListener('astro:before-swap', event => initialize(event.newDocument))
       initialize()

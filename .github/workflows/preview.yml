@@ -1,0 +1,57 @@
+name: Verify reading layout
+on:
+  push:
+    branches: ['design/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: reading-preview-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: python3 scripts/verify-site.py
+      - name: Prepare browser and Chinese system fallback
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+          npm install --global agent-browser
+          agent-browser install --with-deps
+          pnpm exec playwright install chromium
+      - name: Verify the real Agent article before publication
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4321 --directory dist > "$RUNNER_TEMP/reading-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true; agent-browser close || true' EXIT
+          for n in $(seq 1 20); do curl -sf http://127.0.0.1:4321/ > /dev/null && break; sleep 1; done
+          agent-browser open http://127.0.0.1:4321/posts/let-agents-finish-the-job/
+          agent-browser wait --load networkidle
+          agent-browser set viewport 390 844
+          agent-browser snapshot -i > verification/reading-snapshot.txt
+          agent-browser screenshot verification/agent-browser-article.png
+          agent-browser errors > verification/agent-browser-errors.txt
+          node scripts/verify-reading.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chinese-reading-preview
+          path: verification/
+          retention-days: 7
