@@ -8,3 +8,16 @@ const entries = headings.filter(heading => heading.depth >= 2 && heading.depth <
   <summary>文章目录<span class="reading-toc-hint">展开 / 收起</span></summary>
   <nav aria-label="文章目录"><ol>{entries.map(heading => <li class:list={{ 'reading-toc-nested': heading.depth === 3 }}><a href={`#${heading.slug}`}>{heading.text}</a></li>)}</ol></nav>
 </details>}
+<style>
+  /* Override the upstream generic fold widget without affecting article details. */
+  details.reading-toc > summary {
+    display: list-item;
+    list-style: disclosure-closed inside;
+    width: 100%;
+    margin: 0;
+    line-height: 1.8;
+  }
+  details.reading-toc[open] > summary { list-style-type: disclosure-open; }
+  details.reading-toc > summary::before { content: none; border: 0; transform: none; }
+  details.reading-toc > summary .reading-toc-hint { float: right; margin-left: 12px; }
+</style>
