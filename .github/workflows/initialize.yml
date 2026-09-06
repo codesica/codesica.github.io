@@ -1,0 +1,282 @@
+name: Initialize independent blog
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/initialize.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout this independent repository
+        uses: actions/checkout@v4
+      - name: Check initialization state
+        id: state
+        run: |
+          if test -f package.json; then
+            echo 'needed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'needed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Read the official theme at a fixed version
+        if: steps.state.outputs.needed == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: radishzzz/astro-theme-retypeset
+          ref: a636b6d393be714cab52d3fc4baddd3f3905f701
+          path: .theme-source
+          persist-credentials: false
+      - name: Import licensed theme and configure Kai's site
+        if: steps.state.outputs.needed == 'true'
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+          import shutil
+          import textwrap
+
+          root = Path.cwd()
+          source = root / '.theme-source'
+          assert not (root / 'package.json').exists(), 'Refusing to overwrite an initialized site'
+          assert (source / 'LICENSE').is_file(), 'Upstream license must be retained'
+          for entry in source.iterdir():
+              if entry.name in {'.git', '.github', '.vscode', 'README.md', 'assets'}:
+                  continue
+              target = root / entry.name
+              if entry.is_dir():
+                  shutil.copytree(entry, target, dirs_exist_ok=True)
+              else:
+                  shutil.copy2(entry, target)
+          shutil.rmtree(source)
+
+          def write(path, text):
+              target = root / path
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(textwrap.dedent(text).lstrip('\n'), encoding='utf-8')
+
+          # Remove ALL of the theme author's demonstration posts and biography.
+          shutil.rmtree(root / 'src/content', ignore_errors=True)
+          write('src/config.ts', '''
+          import type { ThemeConfig } from '@/types'
+
+          export const themeConfig: ThemeConfig = {
+            site: {
+              title: 'Kai',
+              subtitle: '写代码，做东西，想清楚。',
+              description: 'Kai 的个人博客，记录技术实践、独立开发与思考。',
+              i18nTitle: false,
+              author: 'Kai',
+              url: 'https://codesica.github.io',
+              base: '/',
+              favicon: '/icons/favicon.svg',
+            },
+            color: {
+              mode: 'auto',
+              light: {
+                primary: 'oklch(25% 0 0)',
+                secondary: 'oklch(43% 0 0)',
+                background: 'oklch(99% 0.002 95)',
+                highlight: 'oklch(90% 0 0 / 0.6)',
+              },
+              dark: {
+                primary: 'oklch(92% 0 0)',
+                secondary: 'oklch(76% 0 0)',
+                background: 'oklch(21% 0 0)',
+                highlight: 'oklch(45% 0 0 / 0.5)',
+              },
+            },
+            global: {
+              locale: 'zh',
+              moreLocales: [],
+              fontStyle: 'sans',
+              dateFormat: 'YYYY-MM-DD',
+              toc: true,
+              katex: true,
+              reduceMotion: true,
+            },
+            comment: {
+              enabled: false,
+              giscus: {
+                repo: '', repoId: '', category: '', categoryId: '',
+                mapping: 'pathname', strict: '0', reactionsEnabled: '0',
+                emitMetadata: '0', inputPosition: 'bottom',
+              },
+              twikoo: { envId: '' },
+              waline: { serverURL: '', emoji: [], search: false, imageUploader: false },
+            },
+            seo: {
+              twitterID: '',
+              verification: { google: '', bing: '', yandex: '', baidu: '' },
+              googleAnalyticsID: '',
+              umamiAnalyticsID: '',
+              folo: { feedID: '', userID: '' },
+              apiflashKey: '',
+            },
+            footer: {
+              links: [
+                { name: 'RSS', url: '/atom.xml' },
+                { name: 'GitHub', url: 'https://github.com/codesica' },
+              ],
+              startYear: 2026,
+            },
+            preload: {
+              imageHostURL: '',
+              customGoogleAnalyticsJS: '',
+              customUmamiAnalyticsJS: '',
+            },
+          }
+
+          export const base = themeConfig.site.base === '/' ? '' : themeConfig.site.base.replace(/\\/$/, '')
+          export const defaultLocale = themeConfig.global.locale
+          export const moreLocales = themeConfig.global.moreLocales
+          export const allLocales = [defaultLocale, ...moreLocales]
+          ''')
+          write('src/content/about/about.md', '''
+          ---
+          lang: zh
+          ---
+
+          Kai，程序员。
+
+          这里记录技术实践、独立开发，以及对学习和生活的思考。
+
+          [GitHub](https://github.com/codesica)
+          ''')
+          write('src/content/posts/about-this-site.md', '''
+          ---
+          title: 关于这个站点
+          published: 2026-09-06
+          description: 一个以文字为中心的个人博客。关于本站的结构与发布方式。
+          tags: [站点]
+          lang: zh
+          abbrlink: about-this-site
+          toc: false
+          ---
+
+          这里是 Kai 的个人博客，记录技术实践、独立开发与思考。
+
+          ## 保持简单
+
+          页面以文字为中心，不放侧栏、广告、轮播或复杂的装饰。保留文章、标签、关于页和 RSS 订阅，支持浅色与深色阅读。
+
+          ## 内容与页面分开
+
+          文章使用 Markdown 保存，页面由 Astro 与 Retypeset 主题生成，通过 GitHub Pages 发布。新增文章时不需要手动修改 HTML 或文章列表。
+
+          本站源码保存在独立仓库中。主题来自 [Retypeset](https://github.com/radishzzz/astro-theme-retypeset)，保留原作者的 MIT 许可证与来源说明；没有导入原作者的示例文章。
+          ''')
+          write('templates/post.md', '''
+          ---
+          title: 文章标题
+          published: 2026-09-06
+          description: 用一句话概括这篇文章。
+          tags: []
+          lang: zh
+          draft: true
+          abbrlink: replace-with-your-slug
+          ---
+
+          在这里开始正文。
+          ''')
+          write('public/icons/favicon.svg', '''
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#fafafa"/><path d="M18 14h7v16l17-16h9L31 33l21 17h-11L25 37v13h-7z" fill="#242424"/></svg>
+          ''')
+          write('public/robots.txt', '''
+          User-agent: *
+          Allow: /
+          Sitemap: https://codesica.github.io/sitemap-index.xml
+          ''')
+          # Never inherit someone else's custom domain or verification files.
+          (root / 'public/CNAME').unlink(missing_ok=True)
+          (root / 'CNAME').unlink(missing_ok=True)
+          for file in (root / 'public').glob('*.html'):
+              if file.stem.startswith(('google', 'baidu', 'yandex')):
+                  file.unlink()
+
+          package_path = root / 'package.json'
+          package = json.loads(package_path.read_text())
+          package['name'] = 'kai-blog'
+          package['private'] = True
+          package['repository'] = 'https://github.com/codesica/codesica.github.io'
+          # This flag prevents npm publication; GitHub repository visibility stays public.
+          package_path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + '\n')
+          write('THEME.md', '''
+          # Theme provenance
+
+          Theme: Retypeset by radishzz.
+          Upstream: https://github.com/radishzzz/astro-theme-retypeset
+          Imported commit: a636b6d393be714cab52d3fc4baddd3f3905f701
+          Upstream commit date: 2026-04-12.
+          Imported on: 2026-09-06.
+          License: MIT, retained in LICENSE.
+
+          This is an independent repository, not a GitHub fork. Licensed theme source was imported without upstream Git history. The theme author's example articles, biography, comments endpoint, analytics and search-verification identifiers were removed.
+
+          Local customization: src/config.ts, src/content/, public/icons/favicon.svg, public/robots.txt, README.md, templates/post.md, deployment workflows, and package metadata.
+
+          Before a theme upgrade, use a separate branch and review the diff; preserve site configuration and original articles. Do not blindly overwrite this repository with upstream files.
+          ''')
+          write('README.md', '''
+          # Kai 的博客
+
+          **访问：https://codesica.github.io/**
+
+          Astro + Retypeset + GitHub Pages。独立公开仓库，不是 fork。
+
+          ## 写文章
+
+          1. 复制 `templates/post.md` 到 `src/content/posts/你的英文文件名.md`。
+          2. 修改标题、日期、描述、正文及 `abbrlink`（英文短链接，不能与其他文章重复）。
+          3. 准备发布时将 `draft: true` 改成 `draft: false`，提交到 `main`。
+          4. 在 Actions 中确认部署成功。文章列表、文章页、标签、RSS 和站点地图自动生成。
+
+          **注意：公开仓库中的源文件和历史都可以被查看。`draft: true` 只是不在网站发布，不是隐私保护；不要提交私人聊天、客户资料、密码或令牌。**
+
+          ## 常改的文件
+
+          | 文件 | 用途 |
+          | --- | --- |
+          | `src/content/posts/` | Markdown / MDX 文章 |
+          | `src/content/about/about.md` | 关于页 |
+          | `src/config.ts` | 站名、简介、配色、语言、页脚 |
+          | `templates/post.md` | 新文章模板，不会发布到网站 |
+          | `THEME.md` | 主题来源、版本、定制范围 |
+          | `.github/workflows/deploy.yml` | 自动构建、检查和发布 |
+
+          ## 本地预览
+
+          使用 Node.js 24 和 pnpm 10.33.0：
+
+          ```sh
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm dev
+          ```
+
+          构建检查：`pnpm build`。
+
+          ## 发布
+
+          Pages 发布目标为 `https://codesica.github.io/`，不是旧项目的 `/blog/` 路径。新仓库与旧 `codesica/blog` 没有文件、分支或 Git 历史关系。
+
+          首次初始化由 `initialize.yml` 导入锁定版本的主题；以后不再覆盖已有站点。日常提交通过 `deploy.yml` 构建并发布。GitHub Pages 的 Source 应为 GitHub Actions。
+
+          ## 开源主题
+
+          使用 [Retypeset](https://github.com/radishzzz/astro-theme-retypeset)，原作者 radishzz，主题代码为 MIT 许可证。原始许可保存在 `LICENSE`，导入版本和修改范围见 `THEME.md`。本站原创文章与主题代码是不同内容，不应将主题许可自动理解为文章授权。
+          ''')
+          print('Imported official theme source, preserved its license, and configured Kai blog.')
+      - name: Commit initialized source without importing upstream Git history
+        if: steps.state.outputs.needed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m 'feat: initialize Kai blog with licensed Retypeset theme'
+          git push origin HEAD:main
