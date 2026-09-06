@@ -1,0 +1,175 @@
+name: Build and deploy blog
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'THEME.md'
+      - 'templates/**'
+      - '.github/workflows/initialize.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Checkout blog source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Read Pages configuration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/$GITHUB_REPOSITORY/pages" --jq '{html_url, build_type, source}'
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check types and build static site
+        run: pnpm build
+      - name: Validate generated pages and privacy settings
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+          from html.parser import HTMLParser
+          from urllib.parse import unquote, urlparse
+          root = Path('dist').resolve()
+          required = ['index.html', 'about/index.html', 'posts/about-this-site/index.html', 'tags/index.html', 'atom.xml', 'rss.xml', 'sitemap-index.xml']
+          for relative in required:
+              assert (root / relative).is_file(), f'Missing generated page: {relative}'
+          assert 'Kai' in (root / 'index.html').read_text()
+          banned = ['retypeset-comment.radishzz.cc', 'views.radishzz.cc/script.js', 'dab0e4b9-9cbf-43c3-af60-b09d3b545c38', 'AUCrz5F1e5qbnmKKDXl2Sf8u6y0kOpEO1wLs6HMMmlM']
+          failures = []
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.urls = []
+              def handle_starttag(self, tag, attrs):
+                  for key, value in attrs:
+                      if value and key in {'src', 'href'}:
+                          self.urls.append(value)
+          for page in root.rglob('*.html'):
+              text = page.read_text()
+              for value in banned:
+                  assert value not in text, f'Demo tracking or comment identifier remains in {page}'
+              parser = Links()
+              parser.feed(text)
+              for value in parser.urls:
+                  url = urlparse(value)
+                  if url.scheme in {'mailto', 'tel', 'data', 'javascript'} or value.startswith('#'):
+                      continue
+                  if url.netloc and url.netloc != 'codesica.github.io':
+                      continue
+                  if not url.path:
+                      continue
+                  path = unquote(url.path)
+                  target = (root / path.lstrip('/')) if path.startswith('/') else (page.parent / path)
+                  if not target.exists() and not (target / 'index.html').is_file():
+                      failures.append(f'{page.relative_to(root)} -> {value}')
+          assert not failures, '\n'.join(failures)
+          Path('verification').mkdir(exist_ok=True)
+          report = {'required_pages': required, 'html_pages': len(list(root.rglob('*.html'))), 'internal_links': 'pass', 'demo_tracking_removed': True}
+          Path('verification/static-checks.json').write_text(json.dumps(report, indent=2))
+          print(json.dumps(report, indent=2))
+      - name: Install browser verification tool
+        run: |
+          npm install --global agent-browser
+          agent-browser install --with-deps
+      - name: Verify desktop and mobile rendering
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4321 --directory dist > "$RUNNER_TEMP/blog-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true; agent-browser close || true' EXIT
+          for n in $(seq 1 20); do
+            if curl --silent --fail http://127.0.0.1:4321/ > /dev/null; then break; fi
+            sleep 1
+          done
+          agent-browser open http://127.0.0.1:4321/
+          agent-browser wait --load networkidle
+          agent-browser snapshot -i | tee verification/home-snapshot.txt
+          agent-browser set viewport 1440 1000
+          agent-browser screenshot verification/desktop.png
+          agent-browser eval 'if (!document.body.innerText.includes("Kai")) throw new Error("Blank or wrong homepage"); if (document.documentElement.scrollWidth > innerWidth + 1) throw new Error("Desktop overflow"); "Desktop OK"'
+          agent-browser set viewport 390 844
+          agent-browser screenshot verification/mobile.png
+          agent-browser eval 'if (document.documentElement.scrollWidth > innerWidth + 1) throw new Error("Mobile overflow"); "Mobile OK"'
+          agent-browser open http://127.0.0.1:4321/posts/about-this-site/
+          agent-browser wait --load networkidle
+          agent-browser snapshot -i | tee verification/article-snapshot.txt
+          agent-browser screenshot verification/article-mobile.png
+          agent-browser eval 'if (!document.body.innerText.includes("关于这个站点")) throw new Error("Article missing"); if (document.documentElement.scrollWidth > innerWidth + 1) throw new Error("Article overflow"); "Article OK"'
+          agent-browser open http://127.0.0.1:4321/about/
+          agent-browser wait --load networkidle
+          agent-browser eval 'if (!document.body.innerText.includes("程序员")) throw new Error("About page missing"); "About OK"'
+          agent-browser errors | tee verification/browser-errors.txt
+          agent-browser close
+      - name: Save verification reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-verification
+          path: verification/
+          retention-days: 7
+      - name: Upload website for Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public HTTPS pages
+        env:
+          SITE_URL: https://codesica.github.io
+        shell: bash
+        run: |
+          set -euo pipefail
+          for n in $(seq 1 18); do
+            if curl --fail --silent --show-error "$SITE_URL/?verify=$GITHUB_SHA" -o "$RUNNER_TEMP/home.html" && grep -q '关于这个站点' "$RUNNER_TEMP/home.html"; then
+              break
+            fi
+            if test "$n" = 18; then
+              echo 'Published content did not pass the public HTTPS check.'
+              exit 1
+            fi
+            sleep 5
+          done
+          for path in /about/ /posts/about-this-site/ /atom.xml /rss.xml /sitemap-index.xml; do
+            curl --fail --silent --show-error "$SITE_URL$path" -o /dev/null
+            echo "HTTPS OK: $path"
+          done
+          echo '### Blog published and verified' >> "$GITHUB_STEP_SUMMARY"
+          echo 'https://codesica.github.io/' >> "$GITHUB_STEP_SUMMARY"
