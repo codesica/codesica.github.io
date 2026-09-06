@@ -5,7 +5,7 @@ import GithubCard from '@/components/Widgets/GithubCard.astro'
 import ImageZoom from '@/components/Widgets/ImageZoom.astro'
 import MediaEmbed from '@/components/Widgets/MediaEmbed.astro'
 import ReadingControls from '@/components/ReadingControls.astro'
-import { themeConfig } from '@/config'
+import { base, themeConfig } from '@/config'
 import Head from '@/layouts/Head.astro'
 import { getPageInfo } from '@/utils/page'
 import '@/styles/comment.css'
@@ -51,7 +51,7 @@ const navigation = [
       </main>
       <footer class="reading-footer">
         <span>© {new Date().getFullYear()} {author}</span>
-        <nav aria-label="页脚导航"><a href={getLocalizedPath('/atom.xml')}>RSS</a><a href="https://github.com/codesica" rel="me">GitHub</a></nav>
+        <nav aria-label="页脚导航"><a href={`${base}/atom.xml`} data-astro-reload data-astro-prefetch="false">RSS</a><a href="https://github.com/codesica" rel="me">GitHub</a></nav>
       </footer>
     </div>
     <CodeCopyButton />
