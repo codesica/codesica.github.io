@@ -8,7 +8,6 @@ import CodeCopyButton from '@/components/Widgets/CodeCopyButton.astro'
 import GithubCard from '@/components/Widgets/GithubCard.astro'
 import ImageZoom from '@/components/Widgets/ImageZoom.astro'
 import MediaEmbed from '@/components/Widgets/MediaEmbed.astro'
-import SoundEffect from '@/components/Widgets/SoundEffect.astro'
 import { themeConfig } from '@/config'
 import Head from '@/layouts/Head.astro'
 import { getPageInfo } from '@/utils/page'
@@ -30,18 +29,10 @@ interface Props {
 const { postTitle, postDescription, postSlug, supportedLangs = [] } = Astro.props
 const { isPost } = getPageInfo(Astro.url.pathname)
 const fontStyle = themeConfig.global.fontStyle === 'serif' ? 'font-serif' : 'font-sans'
-const MarginBottom = isPost && themeConfig.comment.enabled
-  ? 'mb-10' // Post page with comment
-  : 'mb-12' // Other pages without comment
+const MarginBottom = isPost && themeConfig.comment.enabled ? 'mb-10' : 'mb-12'
 ---
 
-<html
-  lang={Astro.currentLocale}
-  class:list={[
-    fontStyle,
-    isPost ? 'scroll-smooth' : '',
-  ]}
->
+<html lang={Astro.currentLocale} class:list={[fontStyle, isPost ? 'scroll-smooth' : '']}>
   <Head {postTitle} {postDescription} {postSlug} />
   <body>
     <div
@@ -51,13 +42,10 @@ const MarginBottom = isPost && themeConfig.comment.enabled
     >
       <Header />
       <Navbar />
-      <main class={MarginBottom}>
-        <slot />
-      </main>
+      <main class={MarginBottom}><slot /></main>
       <Footer />
     </div>
     <Button supportedLangs={supportedLangs} />
-    <SoundEffect />
     <CodeCopyButton />
     <GithubCard />
     <MediaEmbed />

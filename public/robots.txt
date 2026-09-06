@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://codesica.github.io/sitemap-index.xml
